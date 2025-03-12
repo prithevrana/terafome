@@ -1,3 +1,4 @@
-variable "ec2_name" {
-  type = string
+variable "aws_region" {
+  description = "AWS region"
+  default     = "us-east-2"
 }
