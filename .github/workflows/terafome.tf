@@ -1,17 +1,3 @@
-terraform {
-  backend "s3" {
-    bucket         = "terraform-statefile-backups"
-    key            = "home/ubuntu/terraform/terraform.tfstate" 
-    region         = "us-east-1" 
-    encrypt        = true 
-  }
-}
-
-
-
-
-#main_tasks
-
 provider "aws" {
 	region = "us-east-1"
 }
@@ -86,13 +72,14 @@ resource "aws_security_group" "my_sg" {
 }
 
 resource "aws_instance" "barkha-sharma" {
-  ami           = "ami-04b4f1a9cf54c11d0"
+  ami           = "ami-01f27fa7b8397d77d"
   instance_type = "t2.micro"
   subnet_id     = "subnet-0c9b01f19d9e04c4b"
   key_name      = "test-key"
+ # lifecycle {
+	#prevent_destroy = true
+ # }
   tags = {
-	name = "bhardwaj"
+	name = "tannu"
   }
 }
-
-
