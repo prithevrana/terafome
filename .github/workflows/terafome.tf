@@ -1,8 +1,46 @@
-- name: Change to Terraform directory
-  run: cd terraform && terraform init
+name: Terraform CI/CD
 
-- name: Validate Terraform configuration
-  run: cd terraform && terraform validate
+on:
+  push:
+    branches:
+      - main  # Trigger workflow when code is pushed to the main branch
+  pull_request:
+    branches:
+      - main
 
-- name: Terraform Plan
-  run: cd terraform && terraform plan -out=tfplan
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0  # Specify the Terraform version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 
+
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'  # Apply only on the main branch
+        run: terraform apply -auto-approve tfplan
