@@ -1,46 +1,98 @@
-name: Terraform CI/CD
+terraform {
+  backend "s3" {
+    bucket         = "terraform-statefile-backups"
+    key            = "home/ubuntu/terraform/terraform.tfstate" 
+    region         = "us-east-1" 
+    encrypt        = true 
+  }
+}
 
-on:
-  push:
-    branches:
-      - main  # Trigger workflow when code is pushed to the main branch
-  pull_request:
-    branches:
-      - main
 
-jobs:
-  terraform:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.6.0  # Specify the Terraform version
+#main_tasks
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 
+provider "aws" {
+	region = "us-east-1"
+}
 
-      - name: Terraform Init
-        run: terraform init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+resource "aws_vpc" "myvpc" {
+  cidr_block = var.cidr_block
+  enable_dns_support = true
+  enable_dns_hostnames = true
 
-      - name: Terraform Format
-        run: terraform fmt -check
+  tags = {
+    Name = "myvpc"
+  }
+}
 
-      - name: Terraform Validate
-        run: terraform validate
+resource "aws_internet_gateway" "my_gateway" {
+  vpc_id = aws_vpc.myvpc.id
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
+  tags = {
+    Name = "my_gateway"
+  }
+}
 
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'  # Apply only on the main branch
-        run: terraform apply -auto-approve tfplan
+resource "aws_subnet" "my_subnet" {
+  vpc_id            = aws_vpc.myvpc.id
+  cidr_block        = var.cidr_block
+  availability_zone = "${var.region}a" 
+
+  tags = {
+    Name = "my_subnet"
+  }
+}
+
+resource "aws_route_table" "my_route_table" {
+  vpc_id = aws_vpc.myvpc.id
+
+  tags = {
+    Name = "my_route_table"
+  }
+}
+
+resource "aws_route" "internet_access" {
+  route_table_id         = aws_route_table.my_route_table.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.my_gateway.id
+}
+
+resource "aws_route_table_association" "subnet_association" {
+  subnet_id      = aws_subnet.my_subnet.id
+  route_table_id = aws_route_table.my_route_table.id
+}
+
+resource "aws_security_group" "my_sg" {
+  vpc_id = aws_vpc.myvpc.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "my_sg"
+  }
+}
+
+resource "aws_instance" "barkha-sharma" {
+  ami           = "ami-04b4f1a9cf54c11d0"
+  instance_type = "t2.micro"
+  subnet_id     = "subnet-0c9b01f19d9e04c4b"
+  key_name      = "test-key"
+  tags = {
+	name = "bhardwaj"
+  }
+}
+
+
